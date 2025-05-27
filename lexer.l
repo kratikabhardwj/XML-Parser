@@ -1,8 +1,8 @@
 #include <string.h>
 #include <stdio.h>
 
-int in_tag_context = 0; // flag to track if we're inside a tag
-char* token_str = NULL; // global string value for current token
+int in_tag_context = 0; 
+char* token_str = NULL;
 
 enum {
     LTSL = 258, SLGT, OPEN, CLOSE, ASSIGN,
