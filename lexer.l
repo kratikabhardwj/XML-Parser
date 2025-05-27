@@ -1,109 +1,57 @@
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <stdio.h>
 
-// External lexer functions
-extern int yylex(void);
-extern char* yytext;
-extern char* token_str;
+int in_tag_context = 0; // flag to track if we're inside a tag
+char* token_str = NULL; // global string value for current token
 
-// Token types (must match lexer)
 enum {
     LTSL = 258, SLGT, OPEN, CLOSE, ASSIGN,
     STRING, NAME, DATA, EOF_TOK
 };
 
-int lookahead;
+%}
 
-void advance() {
-    lookahead = yylex();
-}
+%%
 
-void match(int token) {
-    if (lookahead == token) {
-        advance();
+"</"            { in_tag_context = 1; printf("Token: LTSL\n"); return LTSL; }
+"/>"            { in_tag_context = 0; printf("Token: SLGT\n"); return SLGT; }
+"<"             { in_tag_context = 1; printf("Token: OPEN\n"); return OPEN; }
+">"             { in_tag_context = 0; printf("Token: CLOSE\n"); return CLOSE; }
+"="             { printf("Token: ASSIGN\n"); return ASSIGN; }
+
+\"[^\"]*\"      {
+                    token_str = strdup(yytext);
+                    printf("Token: STRING (%s)\n", yytext);
+                    return STRING;
+                }
+
+[a-zA-Z_][a-zA-Z0-9_]* {
+    token_str = strdup(yytext);
+    if (in_tag_context) {
+        printf("Token: NAME (%s)\n", yytext);
+        return NAME;
     } else {
-        fprintf(stderr, "Syntax error: expected token %d, got token %d\n", token, lookahead);
-        exit(1);
+        printf("Token: DATA (%s)\n", yytext);
+        return DATA;
     }
 }
 
-// Grammar rules
-void document();
-void element();
-void elementPrefix();
-void attribute();
-void elementSuffix();
-void elementOrData();
-void endTag();
+[^<>\r\n\t =/"]+ {
+    token_str = strdup(yytext);
+    printf("Token: DATA (%s)\n", yytext);
+    return DATA;
+}
 
-void document() {
-    element();
-    if (lookahead != EOF_TOK) {
-        fprintf(stderr, "Syntax error: expected EOF\n");
-        exit(1);
+[ \t\r\n]+      ; // skip whitespace
+
+<<EOF>> {
+    static int done = 0;
+    if (!done) {
+        done = 1;
+        printf("Token: EOF_TOK\n");
+        return EOF_TOK;
     }
-    printf("Valid XML Document\n");
-}
-
-void element() {
-    match(OPEN);
-    elementPrefix();
-}
-
-void elementPrefix() {
-    if (lookahead == NAME) {
-        match(NAME);
-        attribute();
-        elementSuffix();
-    } else {
-        fprintf(stderr, "Syntax error in elementPrefix\n");
-        exit(1);
-    }
-}
-
-void attribute() {
-    if (lookahead == NAME) {
-        match(NAME);
-        match(ASSIGN);
-        match(STRING);
-        attribute(); // recurse
-    }
-    // else: ε (do nothing)
-}
-
-void elementSuffix() {
-    if (lookahead == CLOSE) {
-        match(CLOSE);
-        elementOrData();
-        endTag();
-    } else if (lookahead == SLGT) {
-        match(SLGT);
-    } else {
-        fprintf(stderr, "Syntax error in elementSuffix\n");
-        exit(1);
-    }
-}
-
-void elementOrData() {
-    if (lookahead == OPEN) {
-        element();
-        elementOrData();
-    } else if (lookahead == DATA) {
-        match(DATA);
-        elementOrData();
-    }
-    // else: ε
-}
-
-void endTag() {
-    match(LTSL);
-    match(NAME);
-    match(CLOSE);
-}
-
-int main() {
-    advance(); // initialize lookahead
-    document();
     return 0;
 }
+
+%%
