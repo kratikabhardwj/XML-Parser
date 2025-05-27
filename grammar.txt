@@ -1,0 +1,11 @@
+document ::= element EOF
+element ::= < elementPrefix
+elementPrefix ::= NAME attribute elementSuffix
+attribute ::= NAME = STRING attribute
+attribute ::= EPSILON
+elementSuffix ::= > elementOrData endTag
+elementSuffix ::= />
+elementOrData ::= element elementOrData
+elementOrData ::= DATA elementOrData
+elementOrData ::= EPSILON
+endTag ::= </ NAME >
